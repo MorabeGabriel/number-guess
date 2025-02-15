@@ -6,43 +6,44 @@ INPUT_NAME() {
   read NAME
   n=${#NAME}
 
+  # Validate username length
   if [[ ! $n -le 22 ]] || [[ ! $n -gt 0 ]]
   then
     INPUT_NAME
   else
-    USER_NAME=$(echo $($PSQL "SELECT username FROM users WHERE username='$NAME';") | sed 's/ //g')
-    if [[ ! -z $USER_NAME ]]
+    # Fetch user data
+    USER_DATA=$($PSQL "SELECT user_id, username, frequent_games FROM users WHERE username='$NAME';")
+
+    if [[ -n $USER_DATA ]]
     then
-      USER_ID=$(echo $($PSQL "SELECT user_id FROM users WHERE username='$USER_NAME';") | sed 's/ //g')
-      GAME_PLAYED=$($PSQL "SELECT COUNT(*) FROM games WHERE user_id=$USER_ID;")
-BEST_GAME=$($PSQL "SELECT MIN(best_guess) FROM games WHERE user_id=$USER_ID;")
+      # Extract user information
+      USER_ID=$(echo "$USER_DATA" | cut -d '|' -f1)
+      USER_NAME=$(echo "$USER_DATA" | cut -d '|' -f2)
+      GAME_PLAYED=$(echo "$USER_DATA" | cut -d '|' -f3)
 
-# Handle NULL case for best_game (in case user hasn't played before)
-if [[ -z $BEST_GAME || $BEST_GAME == "NULL" ]]
-then
-  BEST_GAME="N/A"
-fi
-
-echo "Welcome back, $USER_NAME! You have played $GAME_PLAYED games, and your best game took $BEST_GAME guesses."
-
-
-      # Handle NULL values for best_game
-      if [[ -z $BEST_GAME || $BEST_GAME == "NULL" ]]
-      then
+      # Get the best game (minimum guesses)
+      BEST_GAME=$($PSQL "SELECT MIN(best_guess) FROM games WHERE user_id=$USER_ID;")
+      if [[ -z $BEST_GAME ]]; then
         BEST_GAME="N/A"
       fi
 
+      # ✅ Correct Welcome Message for Returning Users
       echo "Welcome back, $USER_NAME! You have played $GAME_PLAYED games, and your best game took $BEST_GAME guesses."
+
     else
+      # ✅ Correct Message for New Users
       USER_NAME=$NAME
-      echo -e "\nWelcome, $USER_NAME! It looks like this is your first time here."
+      echo "Welcome, $USER_NAME! It looks like this is your first time here."
+      $PSQL "INSERT INTO users(username, frequent_games) VALUES('$USER_NAME', 0);"
     fi
 
+    # Start game
     CORRECT_ANSWER=$(( $RANDOM % 1000 + 1 ))
     GUESS_COUNT=0
     INPUT_GUESS $USER_NAME $CORRECT_ANSWER $GUESS_COUNT
   fi
 }
+
 
 INPUT_GUESS() {
   USER_NAME=$1
