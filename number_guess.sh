@@ -102,3 +102,17 @@ CHECK_ANSWER() {
   fi
 
 }
+SAVE_USER() {
+  USER_NAME=$1 
+  GUESS_COUNT=$2
+
+  CHECK_NAME=$($PSQL "SELECT username FROM users WHERE username='$USER_NAME';")
+  if [[ -z $CHECK_NAME ]]
+  then
+    INSERT_NEW_USER=$($PSQL "INSERT INTO users(username, frequent_games) VALUES('$USER_NAME',1);")
+  else
+    GET_GAME_PLAYED=$(( $($PSQL "SELECT frequent_games FROM users WHERE username='$USER_NAME';") + 1))
+    UPDATE_EXIST_USER=$($PSQL "UPDATE users SET frequent_games=$GET_GAME_PLAYED WHERE username='$USER_NAME';")
+  fi
+  SAVE_GAME $USER_NAME $GUESS_COUNT
+}
