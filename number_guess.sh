@@ -14,8 +14,17 @@ INPUT_NAME() {
     if [[ ! -z $USER_NAME ]]
     then
       USER_ID=$(echo $($PSQL "SELECT user_id FROM users WHERE username='$USER_NAME';") | sed 's/ //g')
-      GAME_PLAYED=$(echo $($PSQL "SELECT frequent_games FROM users WHERE user_id=$USER_ID;") | sed 's/ //g')
-      BEST_GAME=$(echo $($PSQL "SELECT MIN(best_guess) FROM games WHERE user_id=$USER_ID;") | sed 's/ //g')
+      GAME_PLAYED=$($PSQL "SELECT COUNT(*) FROM games WHERE user_id=$USER_ID;")
+BEST_GAME=$($PSQL "SELECT MIN(best_guess) FROM games WHERE user_id=$USER_ID;")
+
+# Handle NULL case for best_game (in case user hasn't played before)
+if [[ -z $BEST_GAME || $BEST_GAME == "NULL" ]]
+then
+  BEST_GAME="N/A"
+fi
+
+echo "Welcome back, $USER_NAME! You have played $GAME_PLAYED games, and your best game took $BEST_GAME guesses."
+
 
       # Handle NULL values for best_game
       if [[ -z $BEST_GAME || $BEST_GAME == "NULL" ]]
